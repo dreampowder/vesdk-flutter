@@ -83,11 +83,15 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
                 photoEditModel = deserializationResult.model ?? photoEditModel
             }
 
+            /*
             if let configuration = configurationData {
-                videoEditViewController = VideoEditViewController(videoAsset: video, configuration: self.getTripleConfiguration(configuration: configuration), photoEditModel: photoEditModel)
+                videoEditViewController = VideoEditViewController(videoAsset: video, configuration: configuration, photoEditModel: photoEditModel)
             } else {
                 videoEditViewController = VideoEditViewController(videoAsset: video, photoEditModel: photoEditModel)
             }
+             */
+            videoEditViewController = VideoEditViewController(videoAsset: video, configuration: self.getTripleConfiguration(configuration: configuration), photoEditModel: photoEditModel)
+            
             videoEditViewController.modalPresentationStyle = .fullScreen
             videoEditViewController.delegate = self
 
@@ -102,6 +106,7 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
 
     ///Added for triple mobile app ui improvements
     private func getTripleConfiguration(configuration: IMGLYDictionary?) -> Configuration{
+        
         let tripleConfig = Configuration.init { builder in
             if let preconfigured = configuration{
                 try? builder.configure(from: preconfigured)
@@ -111,6 +116,7 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
                     button.setImage(UIImage.init(named: "ic_check"), for: .normal)
                 }
             }
+            
         }
         return tripleConfig
     }
