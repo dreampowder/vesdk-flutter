@@ -7,6 +7,14 @@ import AVFoundation
 @available(iOS 9.0, *)
 public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerDelegate {
 
+    // MARK: - Typealias
+    /// A closure to modify a new `VideoEditViewController` before it is presented on screen.
+    public typealias VESDKWillPresentBlock = (_ videoEditViewController: VideoEditViewController) -> Void
+
+    // MARK: - Properties
+    /// Set this closure to modify a new `VideoEditViewController` before it is presented on screen.
+    public static var willPresentVideoEditViewController: VESDKWillPresentBlock?
+    
     // MARK: - Flutter Channel
 
     /// Registers for the channel in order to communicate with the
