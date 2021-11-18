@@ -8,13 +8,15 @@ import AVFoundation
 public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerDelegate {
 
     // MARK: - Typealias
+
     /// A closure to modify a new `VideoEditViewController` before it is presented on screen.
     public typealias VESDKWillPresentBlock = (_ videoEditViewController: VideoEditViewController) -> Void
 
     // MARK: - Properties
+
     /// Set this closure to modify a new `VideoEditViewController` before it is presented on screen.
     public static var willPresentVideoEditViewController: VESDKWillPresentBlock?
-    
+
     // MARK: - Flutter Channel
 
     /// Registers for the channel in order to communicate with the
@@ -42,23 +44,53 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
         if call.method == "openEditor" {
             let configuration = arguments["configuration"] as? IMGLYDictionary
             let serialization = arguments["serialization"] as? IMGLYDictionary
-            self.result = result
+            let videoDictionary = arguments["video"] as? IMGLYDictionary
 
-            var video: Video?
-            if let assetObject = arguments["video"] as? String,
-               let assetURL = EmbeddedAsset(from: assetObject).resolvedURL, let url = URL(string: assetURL) {
-                video = Video(url: url)
+            if videoDictionary != nil {
+                self.result = result
+                let (size, valid) = convertSize(from: videoDictionary?["size"] as? IMGLYDictionary)
+                var video: Video?
+
+                if let videos = videoDictionary?["videos"] as? [String] {
+                    let resolvedAssets = videos.compactMap { EmbeddedAsset(from: $0).resolvedURL }
+                    let assets = resolvedAssets.compactMap{ URL(string: $0) }.map{ AVURLAsset(url: $0) }
+
+                    if assets.count > 0 {
+                        if let videoSize = size {
+                            video = Video(assets: assets, size: videoSize)
+                        } else {
+                            if valid == true {
+                                video = Video(assets: assets)
+                            } else {
+                                result(FlutterError(code: "Invalid video size: width and height must be greater than zero.", message: nil, details: nil))
+                                return
+                            }
+                        }
+                    } else {
+                        if let videoSize = size {
+                            video = Video(size: videoSize)
+                        } else {
+                            result(FlutterError(code: "A video composition without assets must have a specific size.", message: nil, details: nil))
+                            return
+                        }
+                    }
+                } else if let source = videoDictionary?["video"] as? String {
+                    if let resolvedSource = EmbeddedAsset(from: source).resolvedURL, let url = URL(string: resolvedSource) {
+                        video = Video(asset: AVURLAsset(url: url))
+                    }
+                } else if let videoSize = size {
+                    video = Video(size: videoSize)
+                }
+                guard let finalVideo = video else {
+                    result(FlutterError(code: "Could not load video.", message: nil, details: nil))
+                    return
+                }
+
+                self.present(video: finalVideo, configuration: configuration, serialization: serialization)
             } else {
-                result(FlutterError(code: "Could not load video.", message: nil, details: nil))
+                result(FlutterError(code: "The video must not be null.", message: nil, details: nil))
                 return
             }
-
-            guard let finalVideo = video else {
-                result(FlutterError(code: "Could not load video.", message: nil, details: nil))
-                return
-            }
-
-            self.present(video: finalVideo, configuration: configuration, serialization: serialization)
         } else if call.method == "unlock" {
             guard let license = arguments["license"] as? String else { return }
             self.result = result
@@ -85,42 +117,40 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
 
             /*
             if let configuration = configurationData {
-                videoEditViewController = VideoEditViewController(videoAsset: video, configuration: configuration, photoEditModel: photoEditModel)
+                videoEditViewController = VideoEditViewController.makeVideoEditViewController(videoAsset: video, configuration: configuration, photoEditModel: photoEditModel)
             } else {
-                videoEditViewController = VideoEditViewController(videoAsset: video, photoEditModel: photoEditModel)
+                videoEditViewController = VideoEditViewController.makeVideoEditViewController(videoAsset: video, photoEditModel: photoEditModel)
             }
-             */
-            videoEditViewController = VideoEditViewController(videoAsset: video, configuration: self.getTripleConfiguration(configuration: configuration), photoEditModel: photoEditModel)
-            
+            */
+            videoEditViewController = VideoEditViewController.makeVideoEditViewController(videoAsset: video, configuration: self.getTripleConfiguration(configuration: configuration), photoEditModel: photoEditModel)
             videoEditViewController.modalPresentationStyle = .fullScreen
             videoEditViewController.delegate = self
 
             FlutterVESDK.willPresentVideoEditViewController?(videoEditViewController)
 
             return videoEditViewController
-
         }, utiBlock: { (configurationData) -> CFString in
             return (configurationData?.videoEditViewControllerOptions.videoContainerFormatUTI ?? AVFileType.mp4 as CFString)
         }, configurationData: configuration, serialization: serialization)
     }
 
     ///Added for triple mobile app ui improvements
-    private func getTripleConfiguration(configuration: IMGLYDictionary?) -> Configuration{
-        
-        let tripleConfig = Configuration.init { builder in
-            if let preconfigured = configuration{
-                try? builder.configure(from: preconfigured)
-            }
-            builder.configureVideoEditViewController { options in
-                options.applyButtonConfigurationClosure = { button in
-                    button.setImage(UIImage.init(named: "ic_check"), for: .normal)
-                }
-            }
+        private func getTripleConfiguration(configuration: IMGLYDictionary?) -> Configuration{
             
+            let tripleConfig = Configuration.init { builder in
+                if let preconfigured = configuration{
+                    try? builder.configure(from: preconfigured)
+                }
+                builder.configureVideoEditViewController { options in
+                    options.applyButtonConfigurationClosure = { button in
+                        button.setImage(UIImage.init(named: "ic_check"), for: .normal)
+                    }
+                }
+                
+            }
+            return tripleConfig
         }
-        return tripleConfig
-    }
-
+    
     // MARK: - Licensing
 
     /// Unlocks the license from a url.
