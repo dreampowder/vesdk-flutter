@@ -63,6 +63,7 @@ class FlutterVESDK: FlutterIMGLY() {
 
       if(video != null) {
         this.result = result
+
         this.present(asset = video, config = config, serialization = serialization)
       } else {
         result.error("Invalid video location.", "The video can not be nil.", null)
@@ -89,6 +90,7 @@ class FlutterVESDK: FlutterIMGLY() {
     currentSettingsList = settingsList
     currentConfig = ConfigLoader.readFrom(config ?: mapOf()).also {
       it.applyOn(settingsList)
+
     }
 
     settingsList.configure<LoadSettings> { loadSettings ->
