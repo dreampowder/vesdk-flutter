@@ -75,16 +75,16 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
                 photoEditModel = deserializationResult.model ?? photoEditModel
             }
 
-//            if let configuration = configurationData {
-//                videoEditViewController = VideoEditViewController(videoAsset: video, configuration: configuration, photoEditModel: photoEditModel)
-//            } else {
-//                videoEditViewController = VideoEditViewController(videoAsset: video, photoEditModel: photoEditModel)
-//            }
-            
-            videoEditViewController = VideoEditViewController(videoAsset: video, configuration: self.getTripleConfiguration(configuration: configuration), photoEditModel: photoEditModel)
-            
+            if let configuration = configurationData {
+                videoEditViewController = VideoEditViewController(videoAsset: video, configuration: self.getTripleConfiguration(configuration: configuration), photoEditModel: photoEditModel)
+            } else {
+                videoEditViewController = VideoEditViewController(videoAsset: video, photoEditModel: photoEditModel)
+            }
             videoEditViewController.modalPresentationStyle = .fullScreen
             videoEditViewController.delegate = self
+
+            FlutterVESDK.willPresentVideoEditViewController?(videoEditViewController)
+
             return videoEditViewController
 
         }, utiBlock: { (configurationData) -> CFString in
@@ -106,7 +106,7 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
         }
         return tripleConfig
     }
-    
+
     // MARK: - Licensing
 
     /// Unlocks the license from a url.
@@ -119,6 +119,25 @@ public class FlutterVESDK: FlutterIMGLY, FlutterPlugin, VideoEditViewControllerD
             } catch let error {
                 self.handleLicenseError(with: error as NSError)
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    /// Converts a given dictionary into a `CGSize`.
+    /// - Parameter dictionary: The `IMGLYDictionary` to retrieve the size from.
+    /// - Returns: The converted `CGSize` if any and a `bool` indicating whether size is valid.
+    private func convertSize(from dictionary: IMGLYDictionary?) -> (CGSize?, Bool) {
+        if let validDictionary = dictionary {
+            guard let height = validDictionary["height"] as? Double, let width = validDictionary["width"] as? Double else {
+                return (nil, false)
+            }
+            if height > 0 && width > 0 {
+                return (CGSize(width: width, height: height), true)
+            }
+            return (nil, false)
+        } else {
+            return (nil, true)
         }
     }
 }
@@ -162,7 +181,6 @@ extension FlutterVESDK {
             self.result?(res)
         }
     }
-    
 
     /// Called if the `VideoEditViewController` failed to export the video.
     /// - Parameter videoEditViewController: The `VideoEditViewController` that failed to export the video.
